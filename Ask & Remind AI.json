@@ -1,0 +1,957 @@
+{
+  "name": "Ask & Remind AI",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1024,
+        -208
+      ],
+      "id": "ea8e49f9-5d89-4f8d-8c79-805455738e2f",
+      "name": "Chat Received",
+      "webhookId": "6eaf57bd-eed2-41a6-b050-586f1329317b",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "ooT4OZcKcKguoho7",
+          "name": "WhatsApp OAuth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{$json.messages[0].text.body !==  $json.messages[0].text.body ?  $json.field : $json.messages[0].text.body }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=<AgentInstructions>\n\n    <Role>\n        <Name>Intent classifier for a WhatsApp chatbot.</Name>\n        <Description>The user message will be either a QUESTION or a TASK.</Description>\n    </Role>\n\n    <Goal>\n        <Primary>Return a Output in JSON Formate</Primary>\n    </Goal>\n\n    <Instructions>\n        <Instruction>If user is asking for information (general question), label as \"question\".</Instruction>\n<Instruction>If user is asking to add/update/remove a reminder from the to-do list, label as \"task\".</Instruction>\n<Instruction>If user is asking related to pending tasks or any task, label as \"task\".</Instruction>\n    </Instructions>\n\n    <Examples>\n        <Example>\n            <UserInput>\n                Remind me for medicine at 9pm\n            </UserInput>\n            <AgentOutput>\n                 {\n                \"intent\": \"task\"\n                }            \n          </AgentOutput>\n        </Example>\n        <Example>\n            <UserInput>\n                What are the pending tasks remaining?\n            </UserInput>\n            <AgentOutput>\n                 {\n                \"intent\": \"task\"\n                }            \n          </AgentOutput>\n        </Example>\n<Example>\n            <UserInput>\n                Any tasks is remaining to complete?\n            </UserInput>\n            <AgentOutput>\n                 {\n                \"intent\": \"task\"\n                }            \n          </AgentOutput>\n        </Example>\n        <Example>\n            <UserInput>Can you Give me a egg omlet recipe</UserInput>\n            <AgentOutput>\n                {\n                  \"intent\": \"question\"\n                } \n            </AgentOutput>\n        </Example>\n<Example>\n            <UserInput>What is the capital of India?</UserInput>\n            <AgentOutput>\n                {\n                  \"intent\": \"question\"\n                } \n            </AgentOutput>\n        </Example>\n    </Examples>\n</AgentInstructions>\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -800,
+        -208
+      ],
+      "id": "02e6e844-85f4-409a-a938-51d1814fd9e7",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        16
+      ],
+      "id": "7049b8cf-1976-430b-87fc-31cd83105ef5",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "TmKRpMRl2FSOoPoC",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "706314309243019",
+        "recipientPhoneNumber": "=+91 7028727411",
+        "textBody": "={{ $json.message }}\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        992,
+        -112
+      ],
+      "id": "871e10de-c2cb-4a8f-b303-c3e89a02502a",
+      "name": "Send message",
+      "webhookId": "2fc1b0a1-e48c-4234-b573-493efecc2e4b",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "iZIqMT2oiAQVxWR7",
+          "name": "WhatsApp account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cd3299d8-3aea-4353-9457-493f7641679c",
+              "leftValue": "={{ $json.output.intent }}",
+              "rightValue": "question",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -448,
+        -208
+      ],
+      "id": "0fc05898-4902-40c7-85f1-f1dba24b9cf1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Chat Received').item.json.messages[0].text.body }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a precise JSON extractor for a To-Do chatbot. Follow these rules EXACTLY:\n\n1. Output ONLY valid JSON and NOTHING else (no explanations, no code fences).\n2. Use this schema:\n{\n  \"intent\": \"create_task\" | \"query_tasks\",\n  \"task\": string,\n  \"time\": \"YYYY-MM-DD HH:MM\" OR \"unspecified\",\n  \"frequency\": \"one-time\" | \"daily\" | \"weekly\" | \"monthly\" | \"every X hours\" | \"unspecified\" | \"after X hours/mins\",\n  \"category\": \"work\" | \"personal\" | \"finance\" | \"health\" | \"other\" | \"unspecified\",\n  \"raw_text\": string\n\"status\": \"Pending\" | \"Done\" | \"Solved\"\n}\n3. Use the Current Date provided to you ({{ $today.toFormat('yyyy-MM-dd') }}) and assume timezone Asia/Kolkata to resolve relative dates (today, tomorrow, next Monday).\n4. If user gives only a relative time (e.g., \"tomorrow at 8 PM\"), compute the exact date/time relative to Current Date. If not possiblcompute the exacte, set \"time\" to \"unspecified\".\n5. If the user gives a repeating task like “every 2 hours” or “after 2 hours”, compute the next occurrence time by adding the interval to the current time ({{ $now.setZone(\"Asia/Kolkata\").toFormat(\"yyyy-MM-dd HH:mm\") }}). Set \"time\" to that computed next occurrence, and set \"frequency\" to the repeating interval (e.g., \"every 2 hours\").\n6. ALWAYS fill raw_text with the original user message exactly.\n7. If you cannot determine a field, set it to \"unspecified\".\n8. Always set \"status\": \"pending\" when a new task is created.Later, when the task is completed, you’ll immidiately update it to \"done\" on Airtable\n9. If the user is **asking a question about tasks** (e.g., \"what are the pending tasks\", \"show me reminders\"), set:\n   - intent = \"query_tasks\"\n   - task = \"unspecified\"\n   - time = \"unspecified\"\n   - frequency = \"unspecified\"\n   - category = \"unspecified\"\n   - status = \"Pending\" (if they ask for pending tasks) OR \"Done\" (if they ask for completed tasks).\n10. If the user is **creating a new task**, follow the normal extraction rules and set intent = \"create_task\".\n\nExamples:\nInput: \"What are the pending tasks remaining?\"\nOutput: {\n  \"intent\": \"query_tasks\",\n  \"task\": \"unspecified\",\n  \"time\": \"unspecified\",\n  \"frequency\": \"unspecified\",\n  \"category\": \"unspecified\",\n  \"raw_text\": \"What are the pending tasks remaining?\",\n  \"status\": \"Pending\"\n}\n\nInput: \"What tasks have I already completed?\"\nOutput: {\n  \"intent\": \"query_tasks\",\n  \"task\": \"unspecified\",\n  \"time\": \"unspecified\",\n  \"frequency\": \"unspecified\",\n  \"category\": \"unspecified\",\n  \"raw_text\": \"What tasks have I already completed?\",\n  \"status\": \"Solved\"\n}\n\nInput: \"Remind me to call the doctor tomorrow at 10 AM\"\nOutput: {\n  \"intent\": \"create_task\",\n  \"task\": \"Call the doctor\",\n  \"time\": \"2025-09-08 10:00\",\n  \"frequency\": \"one-time\",\n  \"category\": \"health\",\n  \"raw_text\": \"Remind me to call the doctor tomorrow at 10 AM\",\n  \"status\": \"Pending\"\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        -16
+      ],
+      "id": "ef0c9b94-40ba-4348-b175-0488ad4bf46c",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        224
+      ],
+      "id": "b2de8b64-5bf4-4fcf-918f-7acfb7b315b8",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "TmKRpMRl2FSOoPoC",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"intent\": \"task\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        16
+      ],
+      "id": "ef465f0e-a84a-4b91-86f6-e15adff0370f",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"intent\": \"create_task\",\n\"task\":\"Pay electricity bill\",\n\"date\":\"2025-09-07\",\n  \"time\": \"20:00\",\n\"frequency\":\"one-time\",\n\"category\":\"finance\",\n\"raw_text\":\"Remind me to pay electricity bill tomorrow at 8 PM\",\n\"status\": \"Pending\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        224
+      ],
+      "id": "33390e23-92ee-499b-91fb-a6ca392cd8f6",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appPviTA33iy5F3Cm",
+          "mode": "list",
+          "cachedResultName": "Reminder & Ask AI",
+          "cachedResultUrl": "https://airtable.com/appPviTA33iy5F3Cm"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblVhWcL9JPVsXGe8",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appPviTA33iy5F3Cm/tblVhWcL9JPVsXGe8"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "task": "={{ $json.output.task !== 'unspecified' ? $json.output.task: ''  }}",
+            "date": "={{ $json.output.date !== 'unspecified' ? $json.output.date : '' }}",
+            "frequency": "={{ $json.output.frequency !== 'unspecified' ? $json.output.frequency : '' }}",
+            "category": "={{ $json.output.category !== 'unspecified' ? $json.output.category : '' }}",
+            "raw text": "={{ $json.output.raw_text }}",
+            "time": "={{ $json.output.time !== 'unspecified' ? $json.output.time : '' }}",
+            "status": "={{ $json.output.status }}",
+            "intent": "={{ $json.output.intent }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "task",
+              "displayName": "task",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "time",
+              "displayName": "time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "frequency",
+              "displayName": "frequency",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "raw text",
+              "displayName": "raw text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "intent",
+              "displayName": "intent",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        352,
+        192
+      ],
+      "id": "567a6264-5734-4b50-8560-eb7e873f7af8",
+      "name": "Task Record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "LcslR6iMcq61lmgA",
+          "name": "Airtable Personal Access Token account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{ $('Task Record').item.json.fields.date }} {{ $('Task Record').item.json.fields.time }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        192
+      ],
+      "id": "a57a30bc-a44c-4ad4-9241-6cf691bc13cf",
+      "name": "Wait",
+      "webhookId": "dfdc0fcb-7b87-4215-828e-cbd8771fb19e"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "706314309243019",
+        "recipientPhoneNumber": "917028727411",
+        "textBody": "=🔔 Reminder: {{ $('Task Record').item.json.fields.task }} ",
+        "additionalFields": {
+          "previewUrl": false
+        }
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        192
+      ],
+      "id": "67ce5179-4683-4415-a14d-063d3ef4c051",
+      "name": "Send message1",
+      "webhookId": "9a024abe-6981-4371-9172-3e8801709c9a",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "iZIqMT2oiAQVxWR7",
+          "name": "WhatsApp account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Chat Received').item.json.messages[0].text.body }}",
+        "options": {
+          "systemMessage": "You are a helpful assistant. \nAnswer the following user question clearly and briefly\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        -512
+      ],
+      "id": "39eb964b-59ae-4ca1-b712-3e5ce56c2960",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -288
+      ],
+      "id": "37686324-dd4b-4b12-8057-e594234afe88",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "TmKRpMRl2FSOoPoC",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "0"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        -288
+      ],
+      "id": "952d1d5b-d690-49c9-acf9-f4b0ae347644",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "706314309243019",
+        "recipientPhoneNumber": "917028727411",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        128,
+        -416
+      ],
+      "id": "eb22df93-cdae-430c-8931-1c93b0209620",
+      "name": "Send message2",
+      "webhookId": "9ea0e7be-bca7-4787-a8df-2a141cf42269",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "iZIqMT2oiAQVxWR7",
+          "name": "WhatsApp account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "appPviTA33iy5F3Cm",
+          "mode": "list",
+          "cachedResultName": "Reminder & Ask AI",
+          "cachedResultUrl": "https://airtable.com/appPviTA33iy5F3Cm"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblVhWcL9JPVsXGe8",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appPviTA33iy5F3Cm/tblVhWcL9JPVsXGe8"
+        },
+        "id": "={{ $('Task Record').item.json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1024,
+        192
+      ],
+      "id": "58919061-2eaa-4088-adeb-ff64ba7b49a5",
+      "name": "Get a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "LcslR6iMcq61lmgA",
+          "name": "Airtable Personal Access Token account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appPviTA33iy5F3Cm",
+          "mode": "list",
+          "cachedResultName": "Reminder & Ask AI",
+          "cachedResultUrl": "https://airtable.com/appPviTA33iy5F3Cm"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblVhWcL9JPVsXGe8",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appPviTA33iy5F3Cm/tblVhWcL9JPVsXGe8"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Get a record').item.json.id }}",
+            "status": "=Done"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "task",
+              "displayName": "task",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "time",
+              "displayName": "time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "frequency",
+              "displayName": "frequency",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "raw text",
+              "displayName": "raw text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1472,
+        192
+      ],
+      "id": "4acc10c3-06b5-46dc-a84b-34ac9461a09e",
+      "name": "Update record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "LcslR6iMcq61lmgA",
+          "name": "Airtable Personal Access Token account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "706314309243019",
+        "recipientPhoneNumber": "+917028727411",
+        "textBody": "=New Task is Added \"{{ $json.fields.task }}\" {{ $json.fields.frequency }} at {{ $json.fields.time }}.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        576,
+        192
+      ],
+      "id": "9832ab54-58da-4876-9272-3f8eb8cfb6a2",
+      "name": "Send message4",
+      "webhookId": "7cb5f7b7-589d-4d57-884c-067dfb4c784c",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "iZIqMT2oiAQVxWR7",
+          "name": "WhatsApp account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appPviTA33iy5F3Cm",
+          "mode": "list",
+          "cachedResultName": "Reminder & Ask AI",
+          "cachedResultUrl": "https://airtable.com/appPviTA33iy5F3Cm"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblVhWcL9JPVsXGe8",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appPviTA33iy5F3Cm/tblVhWcL9JPVsXGe8"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        352,
+        -112
+      ],
+      "id": "64644b91-57b5-41c1-ac32-06beb603667a",
+      "name": "Search records",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "LcslR6iMcq61lmgA",
+          "name": "Airtable Personal Access Token account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1c792e7f-4a2e-4472-9bbc-2110931d3bce",
+              "leftValue": "={{ $json.output.intent }}",
+              "rightValue": "=query_tasks",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        128,
+        -16
+      ],
+      "id": "14a99639-766c-4554-a03d-771909f0809e",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tasks = $input.all().map(item => item.json);\n\n// Keep only Pending tasks\nconst pendingTasks = tasks.filter(task => task.status === \"Pending\");\n\n// If ALL tasks are done\nif (pendingTasks.length === 0) {\n  return [{ json: { message: \"✅ You have no pending tasks. 🎉\" } }];\n}\n\n// Otherwise format and return only pending ones\nconst formattedTasks = pendingTasks.map((task, index) =>\n  `${index + 1}. ${task.task} at ${task.time}`\n);\n\nreturn [{ json: { message: \"📌 Your Pending Tasks List:\\n\" + formattedTasks.join(\"\\n\") } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -112
+      ],
+      "id": "8d90cd53-583f-4ac1-ba38-4f7aba2b682f",
+      "name": "Code"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task Record": {
+      "main": [
+        [
+          {
+            "node": "Send message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message": {
+      "main": [
+        []
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message1": {
+      "main": [
+        [
+          {
+            "node": "Update record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Send message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a record": {
+      "main": [
+        [
+          {
+            "node": "Send message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message4": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Task Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9c21c0d3-434b-4da5-8505-6889d0fcbd97",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6b1d67482e926a02d3b225eb591590103cc2c884d6b5cd9a076ded9e8e7ab0f3"
+  },
+  "id": "Y4364aVct9xJrAhC",
+  "tags": []
+}
