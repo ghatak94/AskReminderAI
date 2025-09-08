@@ -1,4 +1,4 @@
-# 🧠 n8n Reminder Bot  
+# 🧠 AskReminderAI  
 
 A smart **AI-powered Reminder & Task Manager** built using **n8n**, WhatsApp integration, and Airtable.  
 This project allows users to:  
@@ -10,7 +10,10 @@ This project allows users to:
 ---
 
 ## 🚀 Features
-- ✅ Add reminders with **date, time, frequency, and category**  
+General Questions 
+- ✅ Here you will get normal chat bot eg - **What is the capital of India / Ask about the recipes and all** 
+Reminder and Task related query
+- ✅ Add reminders with **task, date, time, frequency, and category**  
 - ✅ Store tasks in **Airtable** with status tracking  
 - ✅ Fetch and display only **pending tasks**  
 - ✅ Auto-update task status to **Done** after reminders  
@@ -20,32 +23,11 @@ This project allows users to:
 
 ## 📂 Project Structure
 ```
-n8n-reminder-bot/
- ├── reminder-workflow.json   # Exported n8n workflow
+AskReminderAI/
+ ├── Ask & Remind AI.json   # Exported n8n workflow
  ├── README.md                # Project documentation
- └── notes.txt (optional)     # Your notes/extra docs
+
 ```
-
----
-
-## ⚡ Setup Instructions
-### 1. Clone the Repository
-```bash
-git clone https://github.com/<your-username>/n8n-reminder-agent.git
-cd n8n-reminder-agent
-```
-
-### 2. Import Workflow to n8n
-- Open n8n  
-- Go to **Workflows → Import from File**  
-- Upload `reminder-workflow.json`  
-
-### 3. Configure Environment
-- **WhatsApp Node** → Add WhatsApp Business API credentials  
-- **Airtable Node** → Add API Key + Base ID + Table Name  
-- **AI Agent Node** → Configure with your LLM provider (e.g., OpenAI API key)  
-
----
 
 ## 🛠 Tech Stack
 - [n8n](https://n8n.io/) (Automation platform)  
